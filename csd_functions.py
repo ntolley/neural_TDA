@@ -10,8 +10,7 @@ import neo
 import quantities as pq
 
 
-
-def csd_interp(data_path):
+def csd_interp(data_path, ds_step):
     # calculate pixel (um) positions of model objects
     top_l5 = 1466
     soma_l5 = 177.5
@@ -40,6 +39,10 @@ def csd_interp(data_path):
     dir = data_path
     sampr_hnn,LFP_hnn,dt_hnn, tt_hnn, CSD_hnn, maxlfp_hnn, ntrial_hnn = load_hnn.loadHNNdir(dir,spacing_um_hnn)
 
+    #Down sample fixed interval 
+    # ds_step = 10
+    tt_hnn = tt_hnn[::ds_step]
+
     # Average iCSD from HNN
     z_data_hnn = np.linspace(spacing_um_hnn*1E-6, 2300E-6, num_contacts_hnn) * pq.m  # [m]
     diam_hnn = 500E-6 * pq.m                              # [m]
@@ -53,6 +56,7 @@ def csd_interp(data_path):
     for key in LFP_hnn:
 
         lfp_data_hnn = LFP_hnn[key] * 1E-6 * pq.V        # [uV] -> [V]
+        lfp_data_hnn = lfp_data_hnn[:,::ds_step]
 
         # Input dictionaries for monkey data
         delta_input_hnn = {
@@ -69,6 +73,7 @@ def csd_interp(data_path):
         icsd_hnn[key] = delta_icsd_hnn.get_csd()
 
     avgiCSD_hnn = load_hnn.getAvgERP(icsd_hnn, sampr_hnn, tt_hnn, maxlfp_hnn, ntrial_hnn)
+    # avgiCSD_hnn = load_hnn.downsample(avgiCSD_hnn, sampr_hnn, 2000) #Down sample to LFP range
 
     #Prepare HNN data
     # set timerange from 30 to 80 ms
@@ -83,12 +88,15 @@ def csd_interp(data_path):
     # mask[idx_min_hnn:idx_max_hnn] = True
     # avgCSD_trim_X_hnn = avgiCSD_hnn[:,mask]
     avgCSD_trim_X_hnn = avgiCSD_hnn
+    
 
 
 
     Y_hnn = range(avgiCSD_hnn.shape[0])
     # X_hnn = range(avgiCSD_hnn.shape[1])
+    # CSD_spline_hnn=scipy.interpolate.RectBivariateSpline(Y_hnn, X_hnn, avgCSD_trim_X_hnn)
     CSD_spline_hnn=scipy.interpolate.RectBivariateSpline(Y_hnn, X_hnn, avgCSD_trim_X_hnn)
+
 
     # trim channels
     (idx_min_hnn, idx_max_hnn) = (0, 18)
@@ -109,4 +117,7 @@ def csd_interp(data_path):
     return Z_hnn
 
 
-
+#Converts 2D array of to long array indexed by x,y,z coordinates
+def grid2points(csd_grid):
+    csd_points = [[r, c, csd_grid[r,c]] for r in range(csd_grid.shape[0]) for c in range(csd_grid.shape[1])]
+    return csd_points
