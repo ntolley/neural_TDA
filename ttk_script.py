@@ -12,8 +12,8 @@ from paraview.simple import *
 from os.path import isfile, join
 from os import listdir
 
-data_dir = 'D:/Jones_Lab/hnn_params/test_sweep_data/'
-save_dir = 'D:/Jones_Lab/tests/test_script_output/'
+data_dir = 'D:/Jones_Lab/hnn_params/input_time_sweep/input_time_data/'
+save_dir = 'D:/Jones_Lab/hnn_params/input_time_sweep/input_time_skeleton/'
 
 file_list = [f for f in listdir(data_dir) if isfile(join(data_dir, f))]
 
@@ -192,4 +192,4 @@ for csd_file in file_list:
 
     ResetSession()
 
-    #-------- Paraview Scripting Code (start)--------------
+    #-------- Paraview Scripting Code (End)--------------
