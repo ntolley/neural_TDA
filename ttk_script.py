@@ -12,8 +12,9 @@ from paraview.simple import *
 from os.path import isfile, join
 from os import listdir
 
-data_dir = 'D:/Jones_Lab/hnn_params/input_time_sweep/input_time_data/'
-save_dir = 'D:/Jones_Lab/hnn_params/input_time_sweep/input_time_skeleton/'
+file_prefix = 'input_strength032320'
+data_dir = 'D:/Jones_Lab/hnn_params/' + file_prefix + '/'+ file_prefix +'_data/'
+save_dir = 'D:/Jones_Lab/hnn_params/' + file_prefix + '/'+ file_prefix +'_skeleton/'
 
 file_list = [f for f in listdir(data_dir) if isfile(join(data_dir, f))]
 
