@@ -8,9 +8,22 @@ import pandas as pd
 import icsd
 import neo
 import quantities as pq
+import os
+from os.path import isfile, join
+from os import listdir
+    
+#Adjust scalars to center of each contour range, inserts nodes at edges that span range
+def resample_tree(node_data, edge_data, bounds):
+    return
+
+#Returns the minimum distance between two nodes
+def min_node_dist(node_data):
+    return
 
 
-
+#Takes in a .param dictionary, parameter sweeps defined by an array of values, generates all combinations 
+def dict_expand(array_dict):
+    return
 
 def csd_interp(data_path, ds_step):
     # calculate pixel (um) positions of model objects
@@ -123,3 +136,32 @@ def csd_interp(data_path, ds_step):
 def grid2points(csd_grid):
     csd_points = [[r, c, csd_grid[r,c]] for r in range(csd_grid.shape[0]) for c in range(csd_grid.shape[1])]
     return csd_points
+
+#Load tree data from predefined directory
+def load_tree(prefix):
+
+    #Preparing directory
+    s_dir = 'D:/Jones_Lab/hnn_params/' + prefix + '/' +  prefix + '_skeleton/'
+    # d_dir = 'D:/Jones_Lab/hnn_params/' + prefix + '/' +  prefix + '_data/'
+    names = [f for f in listdir(s_dir) if isfile(join(s_dir, f))]
+    names = [f_new.replace('_arcs.csv','') for f_new in names]
+    names = [f_new.replace('_nodes.csv','') for f_new in names]
+    names = np.unique(names)
+
+    #Choose file to plot
+    plot_name = names[6]
+
+
+    # csd_surface_df = pd.read_csv(d_dir + plot_name + '.csv', sep=',')
+    csd_nodes_df = pd.read_csv(s_dir + plot_name + '_nodes.csv', sep=',')
+    csd_connectivity_df = pd.read_csv(s_dir + plot_name + '_arcs.csv', sep=',')
+
+
+    # surface_points = np.array(csd_surface_df[['Points:0','Points:1','Points:2']]) #Use if extracting points from paraview
+    # surface_points = np.array(csd_surface_df) #Use if using original surface file
+
+    node_points = np.array(csd_nodes_df[['Points:0','Points:1','Points:2']])
+    node_connectivity = np.array(csd_connectivity_df[['upNodeId','downNodeId']])
+    node_color = np.array(csd_nodes_df[['CriticalType']])
+
+    return node_points, node_connectivity, node_color
