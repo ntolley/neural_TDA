@@ -14,6 +14,8 @@ from os import listdir
 import networkx as nx
 import matplotlib.pyplot as plt
 import seaborn as sns
+import cv2
+import os
 sns.set()
     
 
@@ -182,6 +184,39 @@ def plot_graph(G):
     plt.show()
     return
 
+def save_graph(G, current_node,save_name,save_dir='D:/Jones_Lab/MRG_example/'):
+    plt.ioff()
+    new_points = np.array([G.nodes[node_idx]['Position'] for node_idx in list(G.nodes)])
+    new_connectivity = np.array([list(e) for e in list(G.edges())])
+
+
+
+    fig = plt.figure(figsize = (8,6))
+    ax = plt.axes(projection='3d')
+
+    ax.set_xlim(0,1100)
+    ax.set_ylim(0,600)
+    ax.set_zlim(-1,4)
+
+    num_pairs = new_connectivity.shape[0]
+    for pair in range(num_pairs):
+        pairID = new_connectivity[pair]
+        pos_start, pos_end = G.nodes[pairID[0]]['Position'], G.nodes[pairID[1]]['Position']
+        xdata, ydata, zdata = [pos_start[0], pos_end[0]], [pos_start[1], pos_end[1]], [pos_start[2], pos_end[2]]
+
+        ax.plot(xdata,ydata,zdata, 'k', linewidth=0.2)
+
+    ax.scatter(new_points[:, 0], new_points[:, 1], new_points[:, 2], 'b')
+
+    current_point = G.nodes[current_node]['Position']
+    ax.scatter(current_point[0],current_point[1],current_point[2],'r', s=100)
+
+    fig.savefig(save_dir + save_name + '.png')
+    
+
+    return
+
+
 # adds or removes nodes based on interval
 def edge_edit(B, start_node, end_node, interval_points):
     # print(str([start_node,end_node]))
@@ -202,13 +237,13 @@ def edge_edit(B, start_node, end_node, interval_points):
 
     #Edge spans exactly 1 bound as desired, update node position and return
     if bound_diff == 1:
-        print(str([start_node,end_node]), 'skip')
+        # print(str([start_node,end_node]), 'skip')
 
         return None
 
     #Connected nodes in same interval, merge together and update attribute dictionary
     elif bound_diff == 0:
-        print(str([start_node,end_node]), 'merge')
+        # print(str([start_node,end_node]), 'merge')
 
         #Update attribute to indicate merging
         B.nodes[start_node]['Merged'].append(end_node)
@@ -227,7 +262,7 @@ def edge_edit(B, start_node, end_node, interval_points):
 
     #Edge spans more than one interval, subdivide
     elif bound_diff > 1:
-        print(str([start_node,end_node]), 'insert')
+        # print(str([start_node,end_node]), 'insert')
 
         B.remove_edge(start_node, end_node)
         
@@ -255,7 +290,8 @@ def edge_edit(B, start_node, end_node, interval_points):
         return None
 
 #Recursive function that goes through all edges 
-def graph_search(A, start, interval_points):
+def graph_search(A, start, interval_points, count=[0]):
+
     if A.nodes[start]['Visited'] == 1:
         return
     else:
@@ -264,6 +300,13 @@ def graph_search(A, start, interval_points):
 
         #Insert or remove nodes based on interval position
         for neighbor_id in neighbors:
+
+            #save graphs for movie
+            # count[0] = count[0] + 1 #Track number of calls, update by reference
+            # save_graph(A, start, 'g_' + str(count[0]))
+
+
+
             #If an edge was merged, the neighbor list updates to reflect new neighbors
             neighbor_update = edge_edit(A, start, neighbor_id, interval_points)
             if neighbor_update != None:
@@ -271,11 +314,34 @@ def graph_search(A, start, interval_points):
                 continue #Go on to next neighbor
 
             else:
-                graph_search(A,neighbor_id,interval_points)
+                graph_search(A,neighbor_id,interval_points,count)
             
 
         
         return
 
+def compute_intervals(node_points, num_intervals):
 
-   
+    min_elevation, max_elevation = min(node_points[:,2]), max(node_points[:,2])
+
+    interval_width = (max_elevation-min_elevation)/(num_intervals-1)
+    low, high = min_elevation - (interval_width/2), max_elevation + (interval_width/2)
+
+    #Centers the minimum and maximum nodes at the min and max intervals
+    # interval_bound = [[low + interval_width*pos, low + interval_width*(pos+1)] for pos in range(num_intervals)]
+    interval_points = np.array([low + interval_width*pos for pos in range(num_intervals+1)])
+
+    return interval_points
+
+def make_movie(image_folder, save_dir, images):
+
+    frame = cv2.imread(os.path.join(image_folder, images[0]))
+    height, width, layers = frame.shape
+
+    video = cv2.VideoWriter(save_dir, 0, 120, (width,height))
+
+    for image in images:
+        video.write(cv2.imread(os.path.join(image_folder, image)))
+
+    cv2.destroyAllWindows()
+    video.release()
