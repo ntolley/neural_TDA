@@ -184,7 +184,7 @@ def plot_graph(G):
     plt.show()
     return
 
-def save_graph(G, current_node,save_name,save_dir='D:/Jones_Lab/MRG_example/'):
+def save_graph(G, current_node,save_name,save_dir='D:/Jones_Lab/MRG_rotating/',count):
     plt.ioff()
     new_points = np.array([G.nodes[node_idx]['Position'] for node_idx in list(G.nodes)])
     new_connectivity = np.array([list(e) for e in list(G.edges())])
@@ -197,6 +197,7 @@ def save_graph(G, current_node,save_name,save_dir='D:/Jones_Lab/MRG_example/'):
     ax.set_xlim(0,1100)
     ax.set_ylim(0,600)
     ax.set_zlim(-1,4)
+    ax.view_init(count[0]*1.2, angle)
 
     num_pairs = new_connectivity.shape[0]
     for pair in range(num_pairs):
@@ -218,8 +219,10 @@ def save_graph(G, current_node,save_name,save_dir='D:/Jones_Lab/MRG_example/'):
 
 
 # adds or removes nodes based on interval
-def edge_edit(B, start_node, end_node, interval_points):
+def edge_edit(B, start_node, end_node, interval_dict):
     # print(str([start_node,end_node]))
+    interval_points = interval_dict['interval_points']
+    half_width = interval_dict['half_width']
 
     #Height of current node
     start_val = B.nodes[start_node]['Position'][2]
@@ -229,8 +232,8 @@ def edge_edit(B, start_node, end_node, interval_points):
     start_bound_idx, end_bound_idx = np.sum(interval_points < start_val), np.sum(interval_points < end_val)
 
     #Update node positions to center of interval
-    B.nodes[start_node]['Position'][2] == np.mean(interval_points[start_bound_idx-1:start_bound_idx]) #*** Speed up with computing interval width ***
-    B.nodes[end_node]['Position'][2] == np.mean(interval_points[end_bound_idx-1:end_bound_idx])
+    B.nodes[start_node]['Position'][2] = interval_points[start_bound_idx] - half_width
+    B.nodes[end_node]['Position'][2] = interval_points[end_bound_idx] - half_width
 
     #Represents how many intervals the edge spans
     bound_diff = abs(start_bound_idx - end_bound_idx)
@@ -273,7 +276,8 @@ def edge_edit(B, start_node, end_node, interval_points):
         new_edges = [[new_nodes[i], new_nodes[i+1]] for i in range(len(new_nodes)-1)]
 
         #Update positions for new nodes
-        new_height = [np.mean(interval_points[start_bound_idx-1 + i : start_bound_idx + i ]) for i in range(bound_diff+1)] 
+        # new_height = [np.mean(interval_points[start_bound_idx-1 + i : start_bound_idx + i ]) for i in range(bound_diff+1)] 
+        new_height = [interval_points[start_bound_idx + i] - half_width for i in range(bound_diff+1)] 
         new_x = np.linspace(B.nodes[start_node]['Position'][0], B.nodes[end_node]['Position'][0], bound_diff+1)
         new_y = np.linspace(B.nodes[start_node]['Position'][1], B.nodes[end_node]['Position'][1], bound_diff+1)
 
@@ -290,7 +294,8 @@ def edge_edit(B, start_node, end_node, interval_points):
         return None
 
 #Recursive function that goes through all edges 
-def graph_search(A, start, interval_points, count=[0]):
+def graph_search(A, start, interval_dict, save = 0, count=[0]):
+
 
     if A.nodes[start]['Visited'] == 1:
         return
@@ -302,19 +307,20 @@ def graph_search(A, start, interval_points, count=[0]):
         for neighbor_id in neighbors:
 
             #save graphs for movie
-            # count[0] = count[0] + 1 #Track number of calls, update by reference
-            # save_graph(A, start, 'g_' + str(count[0]))
+            if save == 1:
+                count[0] = count[0] + 1 #Track number of calls, update by reference
+                save_graph(A, start, 'g_' + str(count[0]), count[0])
 
 
 
             #If an edge was merged, the neighbor list updates to reflect new neighbors
-            neighbor_update = edge_edit(A, start, neighbor_id, interval_points)
+            neighbor_update = edge_edit(A, start, neighbor_id, interval_dict)
             if neighbor_update != None:
                 neighbors.extend(neighbor_update)
                 continue #Go on to next neighbor
 
             else:
-                graph_search(A,neighbor_id,interval_points,count)
+                graph_search(A,neighbor_id,interval_dict,count)
             
 
         
@@ -330,8 +336,9 @@ def compute_intervals(node_points, num_intervals):
     #Centers the minimum and maximum nodes at the min and max intervals
     # interval_bound = [[low + interval_width*pos, low + interval_width*(pos+1)] for pos in range(num_intervals)]
     interval_points = np.array([low + interval_width*pos for pos in range(num_intervals+1)])
+    interval_dict = {'interval_points': interval_points, 'half_width':(interval_width/2)}
 
-    return interval_points
+    return interval_dict
 
 def make_movie(image_folder, save_dir, images):
 
