@@ -242,6 +242,61 @@ def MRG_clear_visits(A, first_pass):
 
     return
 
+def MRG_attributes(A, resolution_list):
+    #Compute MRG at highest resolution
+    original_node_list = list(A.nodes)
+    node_points = np.array([A.nodes[node_idx]['Position'] for node_idx in original_node_list])
+    
+    interval_dict = compute_intervals(node_points, resolution_list[0])
+    graph_search(A, original_node_list[0], interval_dict,0)
+
+    #Store current nodes here
+    node_list = list(A.nodes)
+
+    MRG_clear_visits(A,1)
+
+
+    attribute_dict = {node_idx: {'Node_Count': 1, 'Resolution': resolution_list[0], 'Merge_List': {}} for node_idx in node_list}
+
+    #Compute MRG at subsequent lower resolutions, update attribute dictionary accordingly
+    for res in resolution_list[1:]:
+        node_points = np.array([A.nodes[node_idx]['Position'] for node_idx in node_list])
+        interval_dict = compute_intervals(node_points, res)
+        graph_search(A, node_list[0], interval_dict,0)
+
+        #Update attribute dictionary
+        node_list = list(A.nodes)
+
+        temp_dict = {node_idx: {'Node_Count': 1+np.sum([attribute_dict[inner_node]['Node_Count'] for inner_node in list(A.nodes[node_idx]['New_Merge'])]), 'Resolution':res, 'Merge_List': {inner_node: attribute_dict[inner_node] for inner_node in list(A.nodes[node_idx]['New_Merge']) }} for node_idx in node_list}
+
+        
+        attribute_dict = temp_dict.copy()
+
+        temp_dict.clear()
+        MRG_clear_visits(A,0)
+
+    return attribute_dict
+
+
+#Takes in node from attribute dictionary and lists nodes merged with it
+def unpack_node(parent_node, all_nodes = []):
+    child_nodes = parent_node['Merge_List'].keys()
+
+    for node_idx in child_nodes:
+        all_nodes.append(node_idx)
+        unpack_node(parent_node['Merge_List'][node_idx], all_nodes)
+    
+    return all_nodes
+
+def make_graph(node_points, node_connectivity):
+    G = nx.Graph()
+    G.add_edges_from(node_connectivity)
+
+    node_attributes = {node_id : {'Position' : node_points[node_id,:], 'Visited' : 0, 'Merged':[],'Inserted':[], 'New_Merge':[]} for node_id in list(G.nodes)}
+    nx.set_node_attributes(G,node_attributes)
+
+    return G
+
 def make_movie(image_folder, save_dir, images):
 
     frame = cv2.imread(os.path.join(image_folder, images[0]))
