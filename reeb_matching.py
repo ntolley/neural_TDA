@@ -137,7 +137,9 @@ def edge_edit(B, start_node, end_node, interval_dict):
 
         #Update attribute to indicate merging
         B.nodes[start_node]['Merged'].append(end_node)
+        B.nodes[start_node]['Merged'].extend(B.nodes[end_node]['Merged'])
         B.nodes[start_node]['New_Merge'].append(end_node)
+        B.nodes[start_node]['New_Merge'].extend(B.nodes[end_node]['New_Merge'])
 
         #Join end node neighbors to start node 
         merged_neighbors = list(B.neighbors(end_node))
@@ -239,6 +241,9 @@ def MRG_clear_visits(A, first_pass):
         if first_pass == 1:
             A.nodes[node]['Merged'] = []
             A.nodes[node]['Inserted'] = []
+        else:
+            print(str(node), 'Count:',str(1+len(A.nodes[node]['Merged'])))
+            print(A.nodes[node]['Merged'])
 
     return
 
@@ -248,33 +253,81 @@ def MRG_attributes(A, resolution_list):
     node_points = np.array([A.nodes[node_idx]['Position'] for node_idx in original_node_list])
     
     interval_dict = compute_intervals(node_points, resolution_list[0])
+    half_width = interval_dict['half_width']
     graph_search(A, original_node_list[0], interval_dict,0)
+    # plot_graph(A)
 
     #Store current nodes here
     node_list = list(A.nodes)
+    total_nodes_hires = len(node_list)
 
     MRG_clear_visits(A,1)
 
+    #________Initialize attribute dictionary for finest resolution________
+    attribute_dict = {node_idx: \
+        #Attributes to be propogated through MRG
+        {'Node_Count': 1,\
+        'Resolution': resolution_list[0],\
+        'Range': [A.node[node_idx]['Position'][2]- half_width, A.node[node_idx]['Position'][2] + half_width],\
+        'Position': A.node[node_idx]['Position'],\
+        'Neighbors': list(A.neighbors(node_idx)),\
+        'Proportion': 1/total_nodes_hires,\
+        'Merge_List': {}\
+        
+            
+            
+        } for node_idx in node_list}
 
-    attribute_dict = {node_idx: {'Node_Count': 1, 'Resolution': resolution_list[0], 'Merge_List': {}} for node_idx in node_list}
-
-    #Compute MRG at subsequent lower resolutions, update attribute dictionary accordingly
+    
+    print('________________')
+    print(str(total_nodes_hires), 'Total')
+    print(str(np.sum([attribute_dict[idx]['Node_Count'] for idx in attribute_dict.keys()])),'Test Total')
+    
+    #________Build attribute dictionary for coarser resolutions________
+    #Computes MRG at subsequent lower resolutions, update attribute dictionary accordingly
     for res in resolution_list[1:]:
         node_points = np.array([A.nodes[node_idx]['Position'] for node_idx in node_list])
         interval_dict = compute_intervals(node_points, res)
+        half_width = interval_dict['half_width']
+
         graph_search(A, node_list[0], interval_dict,0)
+        # plot_graph(A)
 
-        #Update attribute dictionary
         node_list = list(A.nodes)
+        total_nodes = len(node_list)
+ 
+        temp_dict = {node_idx: \
+            #Attributes to be propogated through MRG
+            # {'Node_Count': 1 + np.sum([attribute_dict[inner_node]['Node_Count'] for inner_node in list(A.nodes[node_idx]['New_Merge'])]),\  #doesn't sum correctly, not sure why
+            {'Node_Count': 1 + len(A.nodes[node_idx]['Merged']),\
+            'Resolution':res,\
+            'Range': [A.node[node_idx]['Position'][2]- half_width, A.node[node_idx]['Position'][2] + half_width],\
+            'Position': A.node[node_idx]['Position'],\
+            'Neighbors': list(A.neighbors(node_idx)),\
+            # 'Proportion': (1+np.sum([attribute_dict[inner_node]['Node_Count'] for inner_node in list(A.nodes[node_idx]['New_Merge'])]))/total_nodes,\  #doesn't sum correctly, not sure why
+            'Proportion': (1 + len(A.nodes[node_idx]['Merged']))/total_nodes_hires,\
+            'Merge_List': {inner_node: attribute_dict[inner_node] for inner_node in list(A.nodes[node_idx]['New_Merge']) }\
+                
+                
+            
+            } for node_idx in node_list}
 
-        temp_dict = {node_idx: {'Node_Count': 1+np.sum([attribute_dict[inner_node]['Node_Count'] for inner_node in list(A.nodes[node_idx]['New_Merge'])]), 'Resolution':res, 'Merge_List': {inner_node: attribute_dict[inner_node] for inner_node in list(A.nodes[node_idx]['New_Merge']) }} for node_idx in node_list}
+        # print('________________')
+        # print(str(total_nodes), 'Total')
+        # print(str(np.sum([attribute_dict[idx]['Node_Count'] for idx in attribute_dict.keys()])),'Test Total')           
 
         
         attribute_dict = temp_dict.copy()
 
-        temp_dict.clear()
+        print('________________')
+        print(str(total_nodes), 'Total')
+        print(str(np.sum([attribute_dict[idx]['Node_Count'] for idx in attribute_dict.keys()])),'Test Total')   
+
+        # temp_dict.clear()
         MRG_clear_visits(A,0)
 
+    print('________________')
+    print(str(np.sum([attribute_dict[idx]['Node_Count'] for idx in attribute_dict.keys()])),'Final Total')  
     return attribute_dict
 
 
@@ -309,3 +362,24 @@ def make_movie(image_folder, save_dir, images):
 
     cv2.destroyAllWindows()
     video.release()
+
+#Identify nodes that belong to the same branch (monotonic increase or decrease)
+def get_MLIST(node_attributes,MLIST=[]):
+    MLIST.append(node_attributes.keys()[0])
+    neighbors = attribute_dict[node_idx]['Neighbors']
+
+    return
+
+
+def match_nodes():
+    return
+
+def compute_similarity(R_node, S_node, res):
+    return
+
+#Run matching algorithm on two graphs, return similarity
+def match_graphs(R, S, resolution_list):
+    R_MRG = MRG_attributes(R, resolution_list)
+    S_MRG = MRG_attributes(S, resolution_list)
+
+    return
