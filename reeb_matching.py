@@ -236,14 +236,14 @@ def MRG_clear_visits(A, first_pass):
 
     for node in list(A.nodes):
         A.nodes[node]['Visited'] = 0
-        A.nodes[node]['New_Merge'] = []
+        A.nodes[node]['New_Merge'] = [node]
 
         if first_pass == 1:
             A.nodes[node]['Merged'] = []
             A.nodes[node]['Inserted'] = []
-        else:
-            print(str(node), 'Count:',str(1+len(A.nodes[node]['Merged'])))
-            print(A.nodes[node]['Merged'])
+        # else:
+        #     print(str(node), 'Count:',str(1+len(A.nodes[node]['Merged'])))
+        #     print(A.nodes[node]['Merged'])
 
     return
 
@@ -259,7 +259,8 @@ def MRG_attributes(A, resolution_list):
 
     #Store current nodes here
     node_list = list(A.nodes)
-    total_nodes_hires = len(node_list)
+    total_R_nodes = len(node_list) * len(resolution_list)
+    print(total_R_nodes)
 
     MRG_clear_visits(A,1)
 
@@ -271,7 +272,7 @@ def MRG_attributes(A, resolution_list):
         'Range': [A.node[node_idx]['Position'][2]- half_width, A.node[node_idx]['Position'][2] + half_width],\
         'Position': A.node[node_idx]['Position'],\
         'Neighbors': list(A.neighbors(node_idx)),\
-        'Proportion': 1/total_nodes_hires,\
+        'Proportion': 1/(total_R_nodes),\
         'Merge_List': {}\
         
             
@@ -280,7 +281,7 @@ def MRG_attributes(A, resolution_list):
 
     
     print('________________')
-    print(str(total_nodes_hires), 'Total')
+    print(str(len(node_list)), 'Total')
     print(str(np.sum([attribute_dict[idx]['Node_Count'] for idx in attribute_dict.keys()])),'Test Total')
     
     #________Build attribute dictionary for coarser resolutions________
@@ -297,15 +298,15 @@ def MRG_attributes(A, resolution_list):
         total_nodes = len(node_list)
  
         temp_dict = {node_idx: \
-            #Attributes to be propogated through MRG
-            # {'Node_Count': 1 + np.sum([attribute_dict[inner_node]['Node_Count'] for inner_node in list(A.nodes[node_idx]['New_Merge'])]),\  #doesn't sum correctly, not sure why
+            #Attributes to be propogated through MRG \
+            # {'Node_Count': np.sum([attribute_dict[inner_node]['Node_Count'] for inner_node in list(A.nodes[node_idx]['New_Merge'])]) - attribute_dict[node_idx]['Node_Count'],\
             {'Node_Count': 1 + len(A.nodes[node_idx]['Merged']),\
             'Resolution':res,\
             'Range': [A.node[node_idx]['Position'][2]- half_width, A.node[node_idx]['Position'][2] + half_width],\
             'Position': A.node[node_idx]['Position'],\
             'Neighbors': list(A.neighbors(node_idx)),\
-            # 'Proportion': (1+np.sum([attribute_dict[inner_node]['Node_Count'] for inner_node in list(A.nodes[node_idx]['New_Merge'])]))/total_nodes,\  #doesn't sum correctly, not sure why
-            'Proportion': (1 + len(A.nodes[node_idx]['Merged']))/total_nodes_hires,\
+            # 'Proportion': (1+np.sum([attribute_dict[inner_node]['Node_Count'] for inner_node in list(A.nodes[node_idx]['New_Merge'])]))/total_nodes,\  
+            'Proportion': (1 + len(A.nodes[node_idx]['Merged']))/(total_R_nodes),\
             'Merge_List': {inner_node: attribute_dict[inner_node] for inner_node in list(A.nodes[node_idx]['New_Merge']) }\
                 
                 
