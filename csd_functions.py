@@ -135,6 +135,17 @@ def grid2points(csd_grid):
     csd_points = [[r, c, csd_grid[r,c]] for r in range(csd_grid.shape[0]) for c in range(csd_grid.shape[1])]
     return csd_points
 
+def points2grid(csd_points):
+    x_max = int(max(csd_points[:,0])) 
+    y_max = int(max(csd_points[:,1])) 
+
+    csd_grid = np.zeros((x_max+1,y_max+1))
+    for point in range(csd_points.shape[0]):
+        c,r = int(csd_points[point,1]), int(csd_points[point,0])
+        csd_grid[r,c] = csd_points[point,2]
+
+    return csd_grid
+
 #Load tree data from predefined directory
 def load_tree(prefix):
 
