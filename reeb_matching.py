@@ -20,33 +20,57 @@ sns.set()
     
 
 #Load tree data from predefined directory
-def load_tree(prefix):
+def load_tree(data_dir,prefix,file_name):
 
     #Preparing directory
-    s_dir = 'D:/Jones_Lab/hnn_params/' + prefix + '/' +  prefix + '_skeleton/'
-    # d_dir = 'D:/Jones_Lab/hnn_params/' + prefix + '/' +  prefix + '_data/'
-    names = [f for f in listdir(s_dir) if isfile(join(s_dir, f))]
+    s_dir = data_dir + prefix + '/' +  prefix + '_skeleton/'
+    # names = [f for f in listdir(s_dir) if isfile(join(s_dir, f))]
+    # names = [f_new.replace('_arcs.csv','') for f_new in names]
+    # names = [f_new.replace('_nodes.csv','') for f_new in names]
+    # names = np.unique(names)
+
+    csd_nodes_df = pd.read_csv(s_dir + file_name + '_nodes.csv', sep=',')
+    csd_connectivity_df = pd.read_csv(s_dir + file_name + '_arcs.csv', sep=',')
+
+
+    node_points = np.array(csd_nodes_df[['Points:0','Points:1','Points:2']])
+    node_connectivity = np.array(csd_connectivity_df[['upNodeId','downNodeId']])
+    node_type = np.array(csd_nodes_df[['CriticalType']])
+
+    return node_points, node_connectivity, node_type
+
+#Takes a list of file prefixes, computes a similarity matrix for all combinations
+def tree_sim_matrix(file_list, resolution_list, data_dir, prefix):
+    num_files = len(file_list)
+
+    similarity_matrix = np.empty((num_files,num_files))
+    MPAIR_list = []
+
+    for tree_row in range(num_files):
+        for tree_col in range(num_files):
+                R_points, R_connectivity, R_type = load_tree(data_dir,prefix,file_list[tree_row])
+                R = make_graph(R_points,R_connectivity)
+
+                S_points, S_connectivity, S_type = load_tree(data_dir,prefix,file_list[tree_col])
+                S = make_graph(S_points,S_connectivity)
+
+                similarity, MPAIR = match_graphs(R,S,resolution_list)
+                similarity_matrix[tree_row,tree_col] = similarity
+                MPAIR_list.append(MPAIR)
+
+
+
+    return similarity_matrix, MPAIR_list
+
+#Get file names from directory containing reeb graph data
+def get_skeleton_names(skeleton_dir):
+    names = [f for f in listdir(skeleton_dir) if isfile(join(skeleton_dir, f))]
     names = [f_new.replace('_arcs.csv','') for f_new in names]
     names = [f_new.replace('_nodes.csv','') for f_new in names]
     names = np.unique(names)
 
-    #Choose file to plot
-    plot_name = names[6]
+    return names
 
-
-    # csd_surface_df = pd.read_csv(d_dir + plot_name + '.csv', sep=',')
-    csd_nodes_df = pd.read_csv(s_dir + plot_name + '_nodes.csv', sep=',')
-    csd_connectivity_df = pd.read_csv(s_dir + plot_name + '_arcs.csv', sep=',')
-
-
-    # surface_points = np.array(csd_surface_df[['Points:0','Points:1','Points:2']]) #Use if extracting points from paraview
-    # surface_points = np.array(csd_surface_df) #Use if using original surface file
-
-    node_points = np.array(csd_nodes_df[['Points:0','Points:1','Points:2']])
-    node_connectivity = np.array(csd_connectivity_df[['upNodeId','downNodeId']])
-    node_color = np.array(csd_nodes_df[['CriticalType']])
-
-    return node_points, node_connectivity, node_color
 
 def plot_graph(G):
     new_points = np.array([G.nodes[node_idx]['Position'] for node_idx in list(G.nodes)])
@@ -166,8 +190,6 @@ def edge_edit(B, start_node, end_node, interval_dict):
         new_edges = [[new_nodes[i], new_nodes[i+1]] for i in range(len(new_nodes)-1)]
 
         #Update positions for new nodes
-        # new_height = [np.mean(interval_points[start_bound_idx-1 + i : start_bound_idx + i ]) for i in range(bound_diff+1)] 
-        # new_height = [interval_points[start_bound_idx + i] - half_width for i in range(bound_diff+1)] 
         new_height = np.linspace(B.nodes[start_node]['Position'][2], B.nodes[end_node]['Position'][2], bound_diff+1)
         new_x = np.linspace(B.nodes[start_node]['Position'][0], B.nodes[end_node]['Position'][0], bound_diff+1)
         new_y = np.linspace(B.nodes[start_node]['Position'][1], B.nodes[end_node]['Position'][1], bound_diff+1)
@@ -260,7 +282,6 @@ def MRG_attributes(A, resolution_list):
     #Store current nodes here
     node_list = list(A.nodes)
     total_R_nodes = len(node_list) * len(resolution_list)
-    print(total_R_nodes)
 
     MRG_clear_visits(A,1)
 
@@ -278,11 +299,6 @@ def MRG_attributes(A, resolution_list):
             
             
         } for node_idx in node_list}
-
-    
-    print('________________')
-    print(str(len(node_list)), 'Total')
-    print(str(np.sum([attribute_dict[idx]['Node_Count'] for idx in attribute_dict.keys()])),'Test Total')
     
     #________Build attribute dictionary for coarser resolutions________
     #Computes MRG at subsequent lower resolutions, update attribute dictionary accordingly
@@ -295,7 +311,7 @@ def MRG_attributes(A, resolution_list):
         # plot_graph(A)
 
         node_list = list(A.nodes)
-        total_nodes = len(node_list)
+        # total_nodes = len(node_list)
  
         temp_dict = {node_idx: \
             #Attributes to be propogated through MRG \
@@ -311,31 +327,18 @@ def MRG_attributes(A, resolution_list):
                 
                 
             
-            } for node_idx in node_list}
-
-        # print('________________')
-        # print(str(total_nodes), 'Total')
-        # print(str(np.sum([attribute_dict[idx]['Node_Count'] for idx in attribute_dict.keys()])),'Test Total')           
-
+            } for node_idx in node_list}      
         
         attribute_dict = temp_dict.copy()
-
-        print('________________')
-        print(str(total_nodes), 'Total')
-        print(str(np.sum([attribute_dict[idx]['Node_Count'] for idx in attribute_dict.keys()])),'Test Total')   
-
-        # temp_dict.clear()
         MRG_clear_visits(A,0)
 
-    print('________________')
-    print(str(np.sum([attribute_dict[idx]['Node_Count'] for idx in attribute_dict.keys()])),'Final Total')  
+
     return attribute_dict
 
 
 #Takes in node from attribute dictionary and lists nodes merged with it
 def unpack_node(parent_node, all_nodes = []):
     child_nodes = parent_node['Merge_List'].keys()
-
     for node_idx in child_nodes:
         all_nodes.append(node_idx)
         unpack_node(parent_node['Merge_List'][node_idx], all_nodes)
@@ -365,22 +368,127 @@ def make_movie(image_folder, save_dir, images):
     video.release()
 
 #Identify nodes that belong to the same branch (monotonic increase or decrease)
-def get_MLIST(node_attributes,MLIST=[]):
-    MLIST.append(node_attributes.keys()[0])
-    neighbors = attribute_dict[node_idx]['Neighbors']
+def get_MLIST(node_idx, attribute_dict):
+    pos_branch = get_MLIST_branch(node_idx, attribute_dict, 'pos')
+    neg_branch = get_MLIST_branch(node_idx, attribute_dict, 'neg')
 
-    return
+    MLIST = pos_branch + neg_branch
+    MLIST = list(np.unique(MLIST))
+
+    return MLIST
+
+#Method called recursively starting from get_MLIST, two separate calls to get positive and negative branches
+def get_MLIST_branch(node_idx, attribute_dict, branch_sign, MLIST=[], last_node = None):
+    if MLIST == []:
+        MLIST.append(node_idx)
+
+    neighbor_list = attribute_dict[node_idx]['Neighbors'] # Need to remove visited nodes to prevent loop, 
+    try:
+        neighbor_list.remove(last_node)
+    except ValueError: # Necessary for entry to recursion since there isn't a last_node
+        pass
+    
+    height = attribute_dict[node_idx]['Position'][2]
+
+    
+    #Positive branch
+    if branch_sign == 'pos':
+        for neighbor in neighbor_list:
+            if attribute_dict[neighbor]['Position'][2] > height:
+                MLIST.append(neighbor)
+                get_MLIST_branch(neighbor, attribute_dict, branch_sign, MLIST, node_idx)
+
+    #Negative branch
+    elif branch_sign == 'neg':
+        for neighbor in neighbor_list:
+            if attribute_dict[neighbor]['Position'][2] < height:
+                MLIST.append(neighbor)
+                get_MLIST_branch(neighbor, attribute_dict, branch_sign, MLIST, node_idx)    
 
 
-def match_nodes():
-    return
+    return MLIST
 
-def compute_similarity(R_node, S_node, res):
-    return
+
+#Called recursively to match nodes 
+def match_nodes(R_MRG, S_MRG, NLIST, MPAIR):
+    #Pull out attributes used for similarity so they can be iteratively compared
+    R_attributes = {node_idx: R_MRG[node_idx]['Proportion'] for node_idx in R_MRG.keys()}
+
+    R_MLIST_dict = {node_idx: [] for node_idx in R_MRG.keys()}
+
+
+    S_MLIST_dict = {node_idx: [] for node_idx in S_MRG.keys()}
+
+
+    while NLIST['R'] != [] and NLIST['S'] != []:
+        #Find coarse R node with max sim(m,m) to start
+        # print(len(R_attributes))
+        R_node = max(R_attributes, key=R_attributes.get)
+        R_MLIST = R_MLIST_dict[R_node]
+
+        # print(R_attributes)
+
+
+        #Constraints on potential S nodes to match
+        R_height = R_MRG[R_node]['Position'][2]
+
+        #Find S nodes that meet constraints
+        S_attributes = {node_idx: S_MRG[node_idx]['Proportion'] for node_idx in S_MRG.keys() if \
+            S_MRG[node_idx]['Position'][2] == R_height and S_MLIST_dict[node_idx] == R_MLIST}
+        
+        # remove R_node if no candidates
+        if len(S_attributes) == 0:
+            del R_MRG[R_node]
+            del R_attributes[R_node]
+            del R_MLIST_dict[R_node]
+            NLIST['R'].remove(R_node)
+
+        #Find max S_node, add R/S_node to MPAIR
+        else: 
+            S_node = max(S_attributes, key=S_attributes.get)
+
+            #Update MPAIR
+            MPAIR[(R_node, S_node, R_MRG[R_node]['Resolution'])] = {'R':R_node,'S':S_node,'Proportion':[R_attributes[R_node], S_attributes[S_node]],'Resolution': R_MRG[R_node]['Resolution']}
+
+            
+            #Unpack R and S nodes and call match nodes on the subgraph (**do you need the whole tree for MLIST?**)
+            new_R_MRG = R_MRG[R_node]['Merge_List']
+            new_S_MRG = S_MRG[S_node]['Merge_List']
+
+            R_children = list(new_R_MRG.keys())
+            S_children = list(new_S_MRG.keys())
+
+            new_NLIST = {'R':R_children, 'S': S_children}
+
+            match_nodes(new_R_MRG,new_S_MRG,new_NLIST,MPAIR)
+            
+            #Remove both 
+            del R_MRG[R_node]
+            del R_attributes[R_node]
+            del R_MLIST_dict[R_node]
+            NLIST['R'].remove(R_node)
+        
+
+            del S_MRG[S_node]
+            del S_attributes[S_node]
+            del S_MLIST_dict[S_node]
+            NLIST['S'].remove(S_node)
+
+        
+    return 
 
 #Run matching algorithm on two graphs, return similarity
 def match_graphs(R, S, resolution_list):
+    #Compute MRG's for R and S
     R_MRG = MRG_attributes(R, resolution_list)
     S_MRG = MRG_attributes(S, resolution_list)
 
-    return
+    NLIST = {'R': list(R_MRG.keys()), 'S': list(S_MRG.keys())}
+    MPAIR = {}
+
+    match_nodes(R_MRG, S_MRG, NLIST, MPAIR)
+
+    #Add up similarity for all pairs
+    similarity = np.sum([min(MPAIR[pair_idx]['Proportion']) for pair_idx in list(MPAIR.keys())])
+
+    return similarity, MPAIR
